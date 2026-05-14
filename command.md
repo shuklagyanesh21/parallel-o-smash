@@ -1,0 +1,1 @@
+nextflow run main.nf -profile slurm -with-report report_resume.html -with-trace trace_resume.txt
