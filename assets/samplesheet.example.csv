@@ -1,0 +1,4 @@
+sample,fasta,gff
+GCF_000005845,/mnt/data/genomes/GCF_000005845/GCF_000005845.fna,/mnt/data/genomes/GCF_000005845/genomic.gff
+GCF_000006765,/mnt/data/genomes/GCF_000006765/GCF_000006765.fna,/mnt/data/genomes/GCF_000006765/genomic.gff
+GCF_000007565,/mnt/data/genomes/GCF_000007565/GCF_000007565.fna,

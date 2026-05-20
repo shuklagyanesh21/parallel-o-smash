@@ -1,0 +1,34 @@
+# Nextflow runtime artefacts
+work/
+.nextflow/
+.nextflow.log*
+.nextflow.history
+.nextflow.pid
+
+# Pipeline outputs
+results/
+as_result/
+output/
+
+# Per-run reports (when accidentally generated in the repo root)
+report*.html
+trace*.txt
+timeline*.html
+dag*.html
+pipeline_info/
+
+# Local env / IDE
+.env
+.venv/
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Python build artefacts (in case)
+__pycache__/
+*.pyc

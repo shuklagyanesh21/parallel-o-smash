@@ -1,0 +1,169 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://raw.githubusercontent.com/sharmaglab/parallel-o-smash/main/nextflow_schema.json",
+    "title": "parallel-o-smash pipeline parameters",
+    "description": "Parallel antiSMASH 8 runs across many genomes, powered by Nextflow.",
+    "type": "object",
+    "$defs": {
+        "input_output_options": {
+            "title": "Input / output options",
+            "type": "object",
+            "description": "Where to find genomes and where to put results.",
+            "required": ["input", "outdir"],
+            "properties": {
+                "input": {
+                    "type": "string",
+                    "description": "Either a glob pattern matching FASTA files (e.g. '/data/*.fasta') OR a path to a CSV/TSV samplesheet with columns sample,fasta,gff.",
+                    "help_text": "Auto-detected: if the value ends with .csv or .tsv it is treated as a samplesheet, otherwise as a glob."
+                },
+                "outdir": {
+                    "type": "string",
+                    "format": "directory-path",
+                    "description": "Top-level output directory.",
+                    "default": "results"
+                },
+                "gff_pattern": {
+                    "type": "string",
+                    "description": "Filename of the GFF file expected next to each FASTA (glob mode only).",
+                    "default": "genomic.gff"
+                },
+                "use_gff": {
+                    "type": "boolean",
+                    "description": "If true, pass --genefinding-gff3 to antiSMASH when a GFF is found. Falls back to genefinding_tool when missing.",
+                    "default": false
+                }
+            }
+        },
+        "resource_options": {
+            "title": "Resource options",
+            "type": "object",
+            "description": "Per-task resource requests. Memory and time scale with task.attempt on retry.",
+            "properties": {
+                "cpus": {
+                    "type": "integer",
+                    "description": "CPUs per antiSMASH task.",
+                    "default": 32,
+                    "minimum": 1
+                },
+                "memory": {
+                    "type": "string",
+                    "description": "Memory per antiSMASH task (will be multiplied by task.attempt on retry).",
+                    "default": "32 GB",
+                    "pattern": "^\\d+(\\.\\d+)?\\s*(B|KB|MB|GB|TB)$"
+                },
+                "time": {
+                    "type": "string",
+                    "description": "Wallclock per antiSMASH task (will be multiplied by task.attempt on retry).",
+                    "default": "72h",
+                    "pattern": "^\\d+(\\.\\d+)?\\s*(s|m|h|d|sec|min|hour|day)s?$"
+                },
+                "max_retries": {
+                    "type": "integer",
+                    "description": "Number of automatic retries after OOM (137/140) or timeout (143).",
+                    "default": 1,
+                    "minimum": 0
+                }
+            }
+        },
+        "antismash_core_options": {
+            "title": "antiSMASH core options",
+            "type": "object",
+            "description": "Settings that map to top-level antiSMASH flags.",
+            "properties": {
+                "taxon": {
+                    "type": "string",
+                    "description": "Taxonomic classification of input sequences.",
+                    "enum": ["bacteria", "fungi"],
+                    "default": "bacteria"
+                },
+                "genefinding_tool": {
+                    "type": "string",
+                    "description": "Gene-finding algorithm used when no GFF is supplied. Default 'error' matches antiSMASH's own default: the run fails if no annotations are present, forcing an explicit choice.",
+                    "enum": ["prodigal", "prodigal-m", "none", "error"],
+                    "default": "error"
+                },
+                "hmmdetection_strictness": {
+                    "type": "string",
+                    "description": "HMM-based cluster detection strictness.",
+                    "enum": ["strict", "relaxed", "loose"],
+                    "default": "relaxed"
+                },
+                "minlength": {
+                    "type": "integer",
+                    "description": "Only process sequences larger than this (nt).",
+                    "default": 1000,
+                    "minimum": 1
+                },
+                "databases": {
+                    "type": "string",
+                    "description": "Path to the antiSMASH databases directory. Leave null to use the install-bundled databases.",
+                    "default": null
+                },
+                "extra_args": {
+                    "type": "string",
+                    "description": "Free-form extra flags appended to the antiSMASH command (quoted).",
+                    "default": ""
+                },
+                "debug": {
+                    "type": "boolean",
+                    "description": "Add --debug to antiSMASH (produces very verbose logs).",
+                    "default": false
+                }
+            }
+        },
+        "antismash_module_options": {
+            "title": "antiSMASH module presets and toggles",
+            "type": "object",
+            "description": "Choose a preset and/or override individual modules. Toggles set to null inherit from the preset.",
+            "properties": {
+                "as_preset": {
+                    "type": "string",
+                    "description": "antiSMASH module preset. Toggles below override the preset.",
+                    "enum": ["fast", "balanced", "full", "minimal"],
+                    "default": "fast"
+                },
+                "fullhmmer":          { "type": ["boolean", "null"], "description": "Whole-genome PFAM scan. Expensive.",                                     "default": null },
+                "clusterhmmer":       { "type": ["boolean", "null"], "description": "Cluster-limited PFAM scan.",                                              "default": null },
+                "tigrfam":            { "type": ["boolean", "null"], "description": "TIGRFam annotation of clusters.",                                        "default": null },
+                "cc_mibig":           { "type": ["boolean", "null"], "description": "Compare clusters against MIBiG.",                                        "default": null },
+                "asf":                { "type": ["boolean", "null"], "description": "Active site finder analysis.",                                           "default": null },
+                "cb_general":         { "type": ["boolean", "null"], "description": "ClusterBlast against antiSMASH-predicted clusters.",                     "default": null },
+                "cb_subclusters":     { "type": ["boolean", "null"], "description": "ClusterBlast against known precursor subclusters.",                      "default": null },
+                "cb_knownclusters":   { "type": ["boolean", "null"], "description": "ClusterBlast against MIBiG known clusters.",                             "default": null },
+                "pfam2go":            { "type": ["boolean", "null"], "description": "Pfam to GO term mapping.",                                               "default": null },
+                "rre":                { "type": ["boolean", "null"], "description": "RREFinder precision mode on RiPP clusters.",                             "default": null },
+                "rre_cutoff":         { "type": "number",            "description": "Bitscore cutoff for RRE pHMM detection.",                                "default": 25.0 },
+                "smcog_trees":        { "type": ["boolean", "null"], "description": "Phylogenetic trees of secondary metabolite cluster orthologous groups.", "default": null },
+                "tfbs":               { "type": ["boolean", "null"], "description": "Transcription factor binding site finder on clusters.",                  "default": null },
+                "cassis":             { "type": ["boolean", "null"], "description": "Motif-based prediction of SM gene cluster regions (fungi).",             "default": null },
+                "allow_long_headers": { "type": ["boolean", "null"], "description": "Allow sequence identifiers longer than 16 characters.",                  "default": null },
+                "html_start_compact": { "type": ["boolean", "null"], "description": "Use compact view by default on the HTML overview page.",                 "default": null },
+                "html_ncbi_context":  { "type": ["boolean", "null"], "description": "Show NCBI genomic context links for genes.",                             "default": null }
+            }
+        },
+        "generic_options": {
+            "title": "Generic options",
+            "type": "object",
+            "description": "Misc pipeline behaviour.",
+            "properties": {
+                "help": {
+                    "type": "boolean",
+                    "description": "Display the pipeline help message and exit.",
+                    "default": false
+                },
+                "validate_params": {
+                    "type": "boolean",
+                    "description": "Validate parameters against the schema before running.",
+                    "default": true
+                }
+            }
+        }
+    },
+    "allOf": [
+        { "$ref": "#/$defs/input_output_options" },
+        { "$ref": "#/$defs/resource_options" },
+        { "$ref": "#/$defs/antismash_core_options" },
+        { "$ref": "#/$defs/antismash_module_options" },
+        { "$ref": "#/$defs/generic_options" }
+    ]
+}
