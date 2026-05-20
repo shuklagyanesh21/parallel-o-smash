@@ -123,7 +123,7 @@ def PRESETS = [
     minimal: [:]
 ]
 
-def resolveAntismashFlags() {
+def resolveAntismashFlags = { ->
     // Start with preset defaults (false for unset keys)
     def cfg = [:]
     MODULE_KEYS.each { cfg[it] = false }
