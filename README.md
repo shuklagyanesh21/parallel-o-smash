@@ -9,11 +9,11 @@ One command, many genomes. No more editing the workflow file every time you want
 ## Features
 
 - **Run antiSMASH 8 on hundreds of genomes in parallel** - local, SLURM, Docker, or Singularity.
-- **Two input modes** - pass a glob (`'/data/*.fasta'`) or a CSV/TSV samplesheet.
+- **Two input modes** - pass a glob (`'/data/*.fasta'`) for one-liner runs, or a schema-validated CSV samplesheet (`sample,fasta,gff`) when you need per-sample paths or IDs. nf-schema gives clear row/column errors for samplesheets.
 - **antiSMASH presets** - `fast`, `balanced`, `full`, `minimal`. Override any individual module flag from the CLI.
 - **Automatic resource scaling** - OOM and timeout failures are retried with more memory and time.
 - **Pipeline reports** - execution report, trace, timeline, and DAG are generated automatically.
-- **GFF-aware gene finding** - use RefSeq GFFs (`--genefinding-gff3`) when present, fall back to Prodigal otherwise.
+- **GFF-aware gene finding** - use RefSeq GFFs (`--genefinding-gff3`) when present, fall back to the configured gene finder otherwise.
 
 ---
 
@@ -83,7 +83,7 @@ GCF_000006765,/data/GCF_000006765/genome.fna,/data/GCF_000006765/genomic.gff
 GCF_000007565,/data/GCF_000007565/genome.fna,
 ```
 
-The `gff` column is optional. If empty (or `--use_gff false`), Prodigal is used.
+The `gff` column header is required, but individual values may be empty. If a GFF value is empty (or `--use_gff false`), antiSMASH uses the configured `--genefinding_tool`. In glob mode, sibling GFFs are picked up via `--gff_pattern` (default `genomic.gff`) when `--use_gff true`.
 
 ---
 

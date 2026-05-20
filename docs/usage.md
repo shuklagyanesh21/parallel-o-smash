@@ -19,12 +19,12 @@ This document covers all the practical "how do I...?" questions. For a quick ove
 
 ## Input modes
 
-The pipeline auto-detects the type of `--input`:
+The pipeline picks one of two modes based on the `--input` extension:
 
-| `--input` value                              | Mode         |
-|----------------------------------------------|--------------|
-| `'/path/*.fasta'` (anything not `.csv/.tsv`) | Glob         |
-| `samples.csv` or `samples.tsv`               | Samplesheet  |
+| `--input` value                  | Mode         |
+|----------------------------------|--------------|
+| `'/path/*.fasta'` (anything else) | Glob         |
+| `samples.csv`                    | Samplesheet  |
 
 ### Glob mode
 
@@ -32,8 +32,9 @@ The pipeline auto-detects the type of `--input`:
 nextflow run main.nf --input '/data/genomes/*.fasta' -profile slurm
 ```
 
-- Sample IDs are derived from each FASTA's basename (filename without extension), with non-alphanumeric characters replaced by underscores.
+- Sample IDs are derived from each FASTA's basename, with non-alphanumeric characters replaced by underscores.
 - If `--use_gff true`, the pipeline looks for a file matching `--gff_pattern` (default `genomic.gff`) inside the **same directory** as each FASTA.
+- The glob is expanded by Nextflow's `Channel.fromPath(checkIfExists: true)`, so an empty match list fails fast.
 
 ### Samplesheet mode
 
@@ -41,7 +42,7 @@ nextflow run main.nf --input '/data/genomes/*.fasta' -profile slurm
 nextflow run main.nf --input samples.csv -profile slurm
 ```
 
-CSV (or TSV) with header columns `sample,fasta,gff`:
+A `.csv` samplesheet is validated by nf-schema against [`assets/schema_input.json`](../assets/schema_input.json) **before** the workflow channel is built. Missing columns, duplicate samples, missing FASTA files, and invalid file extensions fail with row-level messages — beginners get errors like "Row 3: column fasta does not exist" instead of a generic crash.
 
 ```csv
 sample,fasta,gff
@@ -50,7 +51,8 @@ GCF_000006765,/data/GCF_000006765/genome.fna,/data/GCF_000006765/genomic.gff
 GCF_000007565,/data/GCF_000007565/genome.fna,
 ```
 
-- `gff` column is **optional**. Leave empty to fall back to Prodigal.
+- The `sample`, `fasta`, and `gff` columns are all required in the header.
+- `gff` values may be empty; in that case the pipeline falls back to `--genefinding_tool`.
 - Paths must be absolute or relative to where you launched Nextflow.
 
 ---
@@ -65,9 +67,10 @@ antiSMASH needs gene predictions. Two ways to get them:
    nextflow run main.nf --input '*.fasta' --use_gff true
    ```
 
-   In glob mode, the pipeline looks for `${fasta_directory}/${gff_pattern}`. The default `gff_pattern` is `genomic.gff` (RefSeq convention).
+   - In **glob mode**, the pipeline looks for `${fasta_directory}/${gff_pattern}`. The default `gff_pattern` is `genomic.gff` (RefSeq convention).
+   - In **samplesheet mode**, the pipeline reads GFF paths from the `gff` column. Empty values fall back to `--genefinding_tool`.
 
-2. **Prodigal** (default) — antiSMASH runs gene-finding itself.
+2. **antiSMASH gene-finding** — set `--genefinding_tool` when no GFF is supplied.
 
    ```bash
    nextflow run main.nf --input '*.fasta' --genefinding_tool prodigal-m
@@ -75,7 +78,7 @@ antiSMASH needs gene predictions. Two ways to get them:
 
    Choices: `prodigal`, `prodigal-m` (metagenomic mode), `none`, `error`.
 
-If `--use_gff true` is set but a GFF is missing, the pipeline logs a warning, falls back to `--genefinding_tool`, and prints `Jai mata di!!` (a small blessing for the affected sample).
+If `--use_gff true` is set but a GFF is missing, the pipeline logs a warning and falls back to `--genefinding_tool`.
 
 ---
 
@@ -206,7 +209,7 @@ That's by design (`errorStrategy = 'ignore'` for non-OOM failures). Check the tr
 
 - Truncated/invalid FASTA (sanity-check headers).
 - Contigs shorter than `--minlength` (raise it to e.g. `5000` to drop noise).
-- Missing GFF when `--use_gff true` is set (look for `WARN ... Jai mata di!!` in the log).
+- Missing GFF when `--use_gff true` is set (look for the `GFF missing` warning in the log).
 
 ### Out-of-memory (exit 137 or 140)
 

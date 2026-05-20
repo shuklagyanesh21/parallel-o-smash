@@ -13,8 +13,9 @@
             "properties": {
                 "input": {
                     "type": "string",
-                    "description": "Either a glob pattern matching FASTA files (e.g. '/data/*.fasta') OR a path to a CSV/TSV samplesheet with columns sample,fasta,gff.",
-                    "help_text": "Auto-detected: if the value ends with .csv or .tsv it is treated as a samplesheet, otherwise as a glob."
+                    "pattern": "^\\S+$",
+                    "description": "FASTA glob (e.g. '/data/*.fasta') OR a CSV samplesheet with columns sample,fasta,gff.",
+                    "help_text": "Detected by extension: values ending in .csv are validated against assets/schema_input.json as samplesheets; anything else is treated as a glob and each match becomes a sample. In glob mode, --gff_pattern controls how sibling GFF files are located."
                 },
                 "outdir": {
                     "type": "string",
@@ -29,7 +30,7 @@
                 },
                 "use_gff": {
                     "type": "boolean",
-                    "description": "If true, pass --genefinding-gff3 to antiSMASH when a GFF is found. Falls back to genefinding_tool when missing.",
+                    "description": "If true, pass --genefinding-gff3 to antiSMASH for non-empty GFF entries. Falls back to genefinding_tool when missing.",
                     "default": false
                 }
             }
@@ -42,13 +43,13 @@
                 "cpus": {
                     "type": "integer",
                     "description": "CPUs per antiSMASH task.",
-                    "default": 32,
+                    "default": 8,
                     "minimum": 1
                 },
                 "memory": {
                     "type": "string",
                     "description": "Memory per antiSMASH task (will be multiplied by task.attempt on retry).",
-                    "default": "32 GB",
+                    "default": "12 GB",
                     "pattern": "^\\d+(\\.\\d+)?\\s*(B|KB|MB|GB|TB)$"
                 },
                 "time": {
@@ -95,7 +96,7 @@
                     "minimum": 1
                 },
                 "databases": {
-                    "type": "string",
+                    "type": ["string", "null"],
                     "description": "Path to the antiSMASH databases directory. Leave null to use the install-bundled databases.",
                     "default": null
                 },

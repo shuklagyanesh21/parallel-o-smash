@@ -1,0 +1,41 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://raw.githubusercontent.com/sharmaglab/parallel-o-smash/main/assets/schema_input.json",
+    "title": "parallel-o-smash samplesheet schema",
+    "description": "Schema for the CSV samplesheet provided with --input.",
+    "type": "array",
+    "items": {
+        "type": "object",
+        "properties": {
+            "sample": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_.-]+$",
+                "errorMessage": "Sample names may only contain letters, numbers, underscores, dots, and hyphens.",
+                "meta": ["id"]
+            },
+            "fasta": {
+                "type": "string",
+                "format": "file-path",
+                "exists": true,
+                "pattern": "^\\S+\\.(fa|fas|fasta|fna)(\\.gz)?$",
+                "errorMessage": "FASTA must be an existing .fa, .fas, .fasta, or .fna file path without spaces."
+            },
+            "gff": {
+                "type": "string",
+                "anyOf": [
+                    { "maxLength": 0 },
+                    {
+                        "format": "file-path",
+                        "exists": true,
+                        "pattern": "^\\S+\\.(gff|gff3)(\\.gz)?$"
+                    }
+                ],
+                "errorMessage": "GFF must be empty or an existing .gff/.gff3 file path without spaces."
+            }
+        },
+        "required": ["sample", "fasta", "gff"]
+    },
+    "allOf": [
+        { "uniqueEntries": ["sample"] }
+    ]
+}

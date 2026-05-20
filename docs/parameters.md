@@ -12,12 +12,12 @@ All parameters can be overridden via:
 
 ## Input / output
 
-| Parameter        | Type    | Default        | Description                                                                                                                |
-|------------------|---------|----------------|----------------------------------------------------------------------------------------------------------------------------|
-| `--input`        | string  | **(required)** | Either a glob to FASTAs (e.g. `'/data/*.fasta'`) OR a CSV/TSV samplesheet with columns `sample,fasta,gff`. Auto-detected. |
-| `--outdir`       | string  | `results`      | Top-level output directory. antiSMASH per-sample output goes to `${outdir}/antismash/${sample}/`.                          |
-| `--gff_pattern`  | string  | `genomic.gff`  | Filename of the GFF expected next to each FASTA (glob mode only).                                                          |
-| `--use_gff`      | boolean | `false`        | If `true`, pass `--genefinding-gff3` to antiSMASH when a GFF is found. Falls back to `genefinding_tool` when missing.      |
+| Parameter        | Type    | Default        | Description                                                                                                                                |
+|------------------|---------|----------------|--------------------------------------------------------------------------------------------------------------------------------------------|
+| `--input`        | string  | **(required)** | FASTA glob (e.g. `'/data/*.fasta'`) OR a CSV samplesheet with columns `sample,fasta,gff`. Detected by `.csv` extension; samplesheets are validated against [`assets/schema_input.json`](../assets/schema_input.json). |
+| `--outdir`       | string  | `results`      | Top-level output directory. antiSMASH per-sample output goes to `${outdir}/antismash/${sample}/`.                                          |
+| `--gff_pattern`  | string  | `genomic.gff`  | Filename of the GFF expected next to each FASTA (glob mode only).                                                                          |
+| `--use_gff`      | boolean | `false`        | If `true`, pass `--genefinding-gff3` for non-empty GFF entries. Falls back to `genefinding_tool` when the value is missing.                |
 
 ---
 
@@ -27,8 +27,8 @@ Memory and time are multiplied by `task.attempt` on retry; CPUs are fixed.
 
 | Parameter       | Type    | Default | Description                                                              |
 |-----------------|---------|---------|--------------------------------------------------------------------------|
-| `--cpus`        | integer | `32`    | CPUs per antiSMASH task.                                                 |
-| `--memory`      | string  | `32 GB` | Memory per task (e.g. `16 GB`, `128 GB`).                                |
+| `--cpus`        | integer | `8`     | CPUs per antiSMASH task.                                                 |
+| `--memory`      | string  | `12 GB` | Memory per task (e.g. `16 GB`, `128 GB`).                                |
 | `--time`        | string  | `72h`   | Wallclock per task (e.g. `12h`, `2d`).                                   |
 | `--max_retries` | integer | `1`     | Retries after OOM (exit 137/140) or timeout (exit 143).                  |
 
@@ -39,7 +39,7 @@ Memory and time are multiplied by `task.attempt` on retry; CPUs are fixed.
 | Parameter                    | Type    | Default       | Description                                                                                       |
 |------------------------------|---------|---------------|---------------------------------------------------------------------------------------------------|
 | `--taxon`                    | enum    | `bacteria`    | `bacteria` or `fungi`.                                                                            |
-| `--genefinding_tool`         | enum    | `prodigal-m`  | `prodigal`, `prodigal-m`, `none`, or `error`. Used when no GFF is supplied.                       |
+| `--genefinding_tool`         | enum    | `error`       | `prodigal`, `prodigal-m`, `none`, or `error`. Used when no GFF is supplied.                       |
 | `--hmmdetection_strictness`  | enum    | `relaxed`     | `strict`, `relaxed`, or `loose`. Controls HMM-based cluster detection.                            |
 | `--minlength`                | integer | `1000`        | Skip contigs shorter than this (nt).                                                              |
 | `--databases`                | string  | `null`        | Path to antiSMASH databases. `null` means use the install-bundled directory.                      |

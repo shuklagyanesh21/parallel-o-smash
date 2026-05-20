@@ -9,84 +9,16 @@
 
 nextflow.enable.dsl = 2
 
-// =============================================================================
-//  HELP MESSAGE
-// =============================================================================
-def helpMessage() {
-    log.info """
-    ===============================================================================
-     ${workflow.manifest.name} ${workflow.manifest.version}
-     ${workflow.manifest.description}
-    ===============================================================================
-
-    Usage:
-      nextflow run main.nf --input <glob|samplesheet.csv> [options] -profile <profile>
-
-    Required:
-      --input            Glob to FASTAs (e.g. "/data/*.fasta") OR a path to
-                         a CSV/TSV samplesheet with columns: sample,fasta,gff
-
-    Common options:
-      --outdir           Output directory                    (default: ${params.outdir})
-      --cpus             CPUs per task                       (default: ${params.cpus})
-      --memory           Memory per task                     (default: ${params.memory})
-      --time             Wallclock per task                  (default: ${params.time})
-      --taxon            bacteria | fungi                    (default: ${params.taxon})
-      --use_gff          true | false                        (default: ${params.use_gff})
-      --gff_pattern      GFF filename next to each FASTA     (default: ${params.gff_pattern})
-      --genefinding_tool prodigal | prodigal-m | none | error (default: error — must set explicitly when no GFF)
-      --databases        Path to antiSMASH databases         (default: bundled)
-      --extra_args       Free-form extra antiSMASH flags (quoted)
-
-    antiSMASH presets/toggles:
-      --as_preset        fast | balanced | full | minimal    (default: ${params.as_preset})
-      --fullhmmer / --clusterhmmer / --tigrfam / --cc_mibig / --asf
-      --cb_general / --cb_subclusters / --cb_knownclusters / --pfam2go
-      --rre (--rre_cutoff N) / --smcog_trees / --tfbs / --cassis
-      --allow_long_headers / --html_start_compact / --html_ncbi_context
-      (each takes true/false to override the preset)
-
-    Profiles (combine with comma):
-      -profile standard      Run locally
-      -profile slurm         Submit to SLURM
-      -profile docker        Use the antiSMASH Docker image
-      -profile singularity   Use the antiSMASH Singularity image
-
-    Examples:
-      nextflow run main.nf --input '/data/*.fasta' -profile slurm
-      nextflow run main.nf --input samples.csv --as_preset full -profile slurm,singularity
-      nextflow run main.nf --input '/data/*.fa' --as_preset balanced --fullhmmer true -resume
-    """.stripIndent()
-}
+include { validateParameters; paramsSummaryLog; samplesheetToList } from 'plugin/nf-schema'
 
 // =============================================================================
-//  PARAMETER VALIDATION
+//  PARAMETER VALIDATION AND SUMMARY
 // =============================================================================
-if (params.help) {
-    helpMessage()
-    exit 0
+if (params.validate_params) {
+    validateParameters()
 }
 
-if (!params.input) {
-    log.error "Missing required parameter: --input"
-    helpMessage()
-    exit 1
-}
-
-if (!(params.as_preset in ['fast', 'balanced', 'full', 'minimal'])) {
-    log.error "--as_preset must be one of: fast, balanced, full, minimal (got '${params.as_preset}')"
-    exit 1
-}
-
-if (!(params.taxon in ['bacteria', 'fungi'])) {
-    log.error "--taxon must be one of: bacteria, fungi (got '${params.taxon}')"
-    exit 1
-}
-
-if (!(params.genefinding_tool in ['prodigal', 'prodigal-m', 'none', 'error'])) {
-    log.error "--genefinding_tool must be one of: prodigal, prodigal-m, none, error (got '${params.genefinding_tool}')"
-    exit 1
-}
+log.info paramsSummaryLog(workflow)
 
 // =============================================================================
 //  ANTISMASH PRESET + TOGGLE MERGE
@@ -199,35 +131,34 @@ process ANTISMASH {
 // =============================================================================
 workflow {
 
-    // ---- 1. Decide between samplesheet and glob mode ----
-    def lc = params.input.toLowerCase()
-    def is_sheet = lc.endsWith('.csv') || lc.endsWith('.tsv')
-    def sep      = lc.endsWith('.tsv') ? '\t' : ','
+    // ---- 1. Build genome channel: samplesheet (.csv) or glob ----
+    //
+    // .csv input  -> validated by nf-schema against assets/schema_input.json,
+    //                yielding (meta, fasta, gff) tuples with row-level errors.
+    // anything else -> treated as a glob; sample IDs come from the FASTA
+    //                basename and an optional sibling GFF is picked up via
+    //                --gff_pattern (default genomic.gff).
+    //
     def no_file  = file("${projectDir}/assets/NO_FILE")
+    def is_sheet = (params.input as String).toLowerCase().endsWith('.csv')
 
     def genomes_ch
     if (is_sheet) {
         log.info "Input mode: samplesheet (${params.input})"
         genomes_ch = Channel
-            .fromPath(params.input, checkIfExists: true)
-            .splitCsv(header: true, sep: sep, strip: true)
-            .map { row ->
-                if (!row.sample || !row.fasta) {
-                    error "Samplesheet row missing required column(s): ${row}"
-                }
-                def sample = (row.sample as String).replaceAll(/[^A-Za-z0-9_.-]/, '_')
-                def fa     = file(row.fasta, checkIfExists: true)
+            .fromList(samplesheetToList(params.input, "${projectDir}/assets/schema_input.json"))
+            .map { meta, fasta, gff ->
+                def sample = (meta.id as String).replaceAll(/[^A-Za-z0-9_.-]/, '_')
                 def gff_path = no_file
-                if (params.use_gff && row.gff && row.gff.trim()) {
-                    def candidate = file(row.gff)
-                    if (candidate.exists()) {
-                        gff_path = candidate
-                    } else {
-                        log.warn "GFF missing for ${sample} (expected ${candidate}). Falling back to ${params.genefinding_tool}."
-                        println "Jai mata di!!"
-                    }
+                def has_gff = gff && !(gff instanceof List && gff.isEmpty())
+
+                if (params.use_gff && has_gff) {
+                    gff_path = (gff instanceof CharSequence) ? file(gff.toString(), checkIfExists: true) : gff
+                } else if (params.use_gff) {
+                    log.warn "GFF missing for ${sample}. Falling back to ${params.genefinding_tool}."
                 }
-                tuple(sample, fa, gff_path)
+
+                tuple(sample, fasta, gff_path)
             }
     } else {
         log.info "Input mode: glob (${params.input})"
@@ -242,7 +173,6 @@ workflow {
                         gff_path = candidate
                     } else {
                         log.warn "GFF missing for ${sample} (expected ${candidate}). Falling back to ${params.genefinding_tool}."
-                        println "Jai mata di!!"
                     }
                 }
                 tuple(sample, f, gff_path)
